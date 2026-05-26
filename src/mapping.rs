@@ -502,7 +502,10 @@ fn parse_proguard_record(bytes: &[u8]) -> (Result<ProguardRecord<'_>, ParseError
     } else if matches!(bytes.first(), Some(b' ' | b'\t')) {
         parse_proguard_field_or_method(bytes)
     } else {
-        parse_proguard_class(bytes)
+        match parse_proguard_class(bytes) {
+            Ok(result) => Ok(result),
+            Err(_) => parse_proguard_field_or_method(bytes),
+        }
     };
 
     match result {
