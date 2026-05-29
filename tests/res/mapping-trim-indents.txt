@@ -1,0 +1,5 @@
+com.example.Foo -> a:
+String mName -> b
+1:1:void bar():10:10 -> c
+1:1:void foo():20 -> c
+1:1:void onClick(android.view.View):30 -> c
