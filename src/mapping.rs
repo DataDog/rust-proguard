@@ -502,7 +502,17 @@ fn parse_proguard_record(bytes: &[u8]) -> (Result<ProguardRecord<'_>, ParseError
     } else if matches!(bytes.first(), Some(b' ' | b'\t')) {
         parse_proguard_field_or_method(bytes)
     } else {
-        parse_proguard_class(bytes)
+        match parse_proguard_class(bytes) {
+            Ok(result) => Ok(result),
+            Err(err) => {
+                let (line, _) = split_line(bytes);
+                if line.trim_ascii_end().ends_with(b":") {
+                    Err(err)
+                } else {
+                    parse_proguard_field_or_method(bytes)
+                }
+            }
+        }
     };
 
     match result {
@@ -1066,6 +1076,41 @@ mod tests {
                 ty: "android.app.Activity",
                 original: "mActivity",
                 obfuscated: "a",
+            }),
+        );
+    }
+
+    #[test]
+    fn try_parse_field_trim_indents() {
+        // mappingFileTrimIndents=true strips all leading whitespace; member
+        // lines start at column 0 and must still parse correctly.
+        let bytes = b"android.app.Activity mActivity -> a";
+        let parsed = ProguardRecord::try_parse(bytes);
+        assert_eq!(
+            parsed,
+            Ok(ProguardRecord::Field {
+                ty: "android.app.Activity",
+                original: "mActivity",
+                obfuscated: "a",
+            }),
+        );
+    }
+
+    #[test]
+    fn try_parse_method_trim_indents() {
+        // mappingFileTrimIndents=true strips all leading whitespace; member
+        // lines start at column 0 and must still parse correctly.
+        let bytes = b"boolean equals(java.lang.Object,java.lang.Object) -> a";
+        let parsed = ProguardRecord::try_parse(bytes);
+        assert_eq!(
+            parsed,
+            Ok(ProguardRecord::Method {
+                ty: "boolean",
+                original: "equals",
+                obfuscated: "a",
+                arguments: "java.lang.Object,java.lang.Object",
+                original_class: None,
+                line_mapping: None,
             }),
         );
     }
